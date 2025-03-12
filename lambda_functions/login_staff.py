@@ -1,10 +1,21 @@
 import json
 import os
 import boto3
+import jwt
+import datetime
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ["TABLE_NAME"]
+SECRET_KEY = os.environ["JWT_SECRET"]
 table = dynamodb.Table(table_name)
+
+def generate_jwt(user_id):
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        "iat": datetime.datetime.utcnow()
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 def lambda_handler(event, context):
     try:
