@@ -1,8 +1,13 @@
 import json
 import os
 import boto3
-import jwt
+import logging
 import datetime
+from project import jwt
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ["TABLE_NAME"]
@@ -41,10 +46,11 @@ def lambda_handler(event, context):
         # Check if the item exists
         if 'Item' in response:
             if response['Item']['Password'] == password:
+                token = generate_jwt(staffID)
                 return {
                     'statusCode': 200,
                     'headers': {'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({'success': True, 'redirect_url': '/welding_home.html'})
+                    'body': json.dumps({'success': True, 'redirect_url': '/index.html', 'token': token})
                 }
             else:
                 return {
@@ -67,6 +73,6 @@ def lambda_handler(event, context):
 
 # test   
 {
-  "email_add": "26598",
-  "password": "123"
+  "httpMethod": "POST",
+  "body": "{\"ID\": \"17452\", \"pwd\": \"123\"}"
 }

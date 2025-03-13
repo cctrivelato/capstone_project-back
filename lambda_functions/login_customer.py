@@ -1,10 +1,26 @@
 import json
 import os
 import boto3
+import logging
+import datetime
+from project import jwt
+
+# Set up logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
 table_name = os.environ["TABLE_NAME"]
+SECRET_KEY = os.environ["JWT_SECRET"]
 table = dynamodb.Table(table_name)
+
+def generate_jwt(user_id):
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        "iat": datetime.datetime.utcnow()
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 def lambda_handler(event, context):
     try:
@@ -30,10 +46,11 @@ def lambda_handler(event, context):
         # Check if the item exists
         if 'Item' in response:
             if response['Item']['Password'] == password:
+                token = generate_jwt(customerID)
                 return {
                     'statusCode': 200,
                     'headers': {'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({'success': True, 'redirect_url': '/welding_home.html'})
+                    'body': json.dumps({'success': True, 'redirect_url': '/index.html', 'token': token})
                 }
             else:
                 return {
@@ -53,3 +70,8 @@ def lambda_handler(event, context):
             'headers': {'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({'error': str(e)})
         }
+    
+{
+  "httpMethod": "POST",
+  "body": "{\"ID\": \"12345\", \"pwd\": \"securepass\"}"
+}
