@@ -73,7 +73,3 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)})
         }
     
-{
-  "httpMethod": "POST",
-  "body": "{\"ID\": \"12345\", \"pwd\": \"securepass\"}"
-}
