@@ -1,92 +1,61 @@
-from project import jwt
-import json
 import os
-import logging
+import json
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+import logging
 
+# Enable logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
-dynamodb = boto3.resource('dynamodb')
-table_name = os.environ["TABLE_NAME"]
-
-def get_user_from_dynamodb(user_id):
-    table = dynamodb.Table(table_name)
-    
+def lambda_handler(event: any, context: any):
     try:
-        response = table.get_item(Key={"CustomerID": user_id})
-        return response.get("Item") 
-    
-    except (BotoCoreError, ClientError) as e:
-        print(f"DynamoDB error: {e}")
-        return None
+        body = json.loads(event["body"])
 
-def lambda_handler(event, context):
-    headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS, GET",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type"
-    }
+        firstname = body["firstname"]
+        lastname = body["lastname"]
+        phoneNum = body["phoneNum"]
+        email_add = body["email_add"]
+        pwd = body["pwd"]
+        user_type = body["Type"]
 
-    if event.get("httpMethod") == "OPTIONS":
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({"message": "CORS preflight successful"})
+        dynamodb = boto3.resource("dynamodb")
+        table_name = os.environ["TABLE_NAME"]
+        table = dynamodb.Table(table_name)
+
+        item = {
+            'User_Type': user_type,
+            'FirstName': firstname,
+            'LastName': lastname,
+            'Phone': phoneNum,
+            'Email': email_add,
+            'Password': pwd
         }
+        logger.info(f"Inserting item: {json.dumps(item)}")
 
-    # Get Authorization header
-    auth_header = event.get("headers", {}).get("Authorization", "")
+        response = table.put_item(Item=item)
 
-    if not auth_header.startswith("Bearer "):
-        return {
-            "statusCode": 401,
-            "headers": headers,
-            "body": json.dumps({"message": "Unauthorized"})
-        }
-
-    token = auth_header.split(" ")[1]
-
-    try:
-        SECRET_KEY = os.environ["JWT_SECRET"]   
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-
-        user_id = decoded_token.get("CustomerID")  # Assuming 'CustomerID' is in the payload
-        if not user_id:
-            return {
-                "statusCode": 400,
-                "headers": headers,
-                "body": json.dumps({"message": "Invalid token structure"})
-            }
-
-        # Query DynamoDB for the user
-        user = get_user_from_dynamodb(user_id)
-        if not user:
-            return {
-                "statusCode": 404,
-                "headers": headers,
-                "body": json.dumps({"message": "User not found"})
-            }
+        logger.info(f"DynamoDB response: {json.dumps(response)}")
 
         return {
             "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({"message": f"Welcome back, {user.get('FirstName')}!"})
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": json.dumps({"message": f"Successfully Subscribed {firstname} {lastname}. Your type of User: {user_type}. Thank you!"})
         }
 
-    except jwt.ExpiredSignatureError:
+    except Exception as e:
+        logger.error(f"Error inserting item: {str(e)}")
         return {
-            "statusCode": 401,
-            "headers": headers,
-            "body": json.dumps({"message": "Token expired"})
-        }
-
-    except jwt.InvalidTokenError:
-        return {
-            "statusCode": 401,
-            "headers": headers,
-            "body": json.dumps({"message": "Invalid token"})
+            "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": json.dumps({"error": f"Failed to insert item: {str(e)}"})
         }
     
 {

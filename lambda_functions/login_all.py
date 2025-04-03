@@ -14,9 +14,10 @@ table_name = os.environ["TABLE_NAME"]
 SECRET_KEY = os.environ["JWT_SECRET"]
 table = dynamodb.Table(table_name)
 
-def generate_jwt(user_id):
+def generate_jwt(email, user_type):
     payload = {
-        "user_id": user_id,
+        "Email": email,
+        "User_Type": user_type,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
         "iat": datetime.datetime.utcnow()
     }
@@ -30,27 +31,28 @@ def lambda_handler(event, context):
         else:
             body = event  # If it's already a dictionary, use it directly
         
-        staffID = body.get('ID')
+        email = body.get('Email')
         password = body.get('pwd')
+        user_type = body.get('Type')
 
-        staffID = body['ID']  
-        password = body['pwd']  
-        
+        email = body['Email']  
+        password = body['pwd']
+        user_type = body.get('Type')
         
         response = table.get_item(
             Key={
-                'StaffID': staffID
+                'Email': email
             }
         )
             
         # Check if the item exists
         if 'Item' in response:
             if response['Item']['Password'] == password:
-                token = generate_jwt(staffID)
+                token = generate_jwt(email, user_type)
                 return {
                     'statusCode': 200,
                     'headers': {'Access-Control-Allow-Origin': '*'},
-                    'body': json.dumps({'success': True, 'redirect_url': '/index.html', 'token': token})
+                    'body': json.dumps({'success': True, 'redirect_url': 'loading.html', 'token': token})
                 }
             else:
                 return {
@@ -70,9 +72,8 @@ def lambda_handler(event, context):
             'headers': {'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({'error': str(e)})
         }
-
-# test   
+    
 {
   "httpMethod": "POST",
-  "body": "{\"ID\": \"17452\", \"pwd\": \"123\"}"
+  "body": "{\"ID\": \"12345\", \"pwd\": \"securepass\"}"
 }

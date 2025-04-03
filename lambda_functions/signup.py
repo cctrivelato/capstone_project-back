@@ -16,18 +16,18 @@ def lambda_handler(event: any, context: any):
         phoneNum = body["phoneNum"]
         email_add = body["email_add"]
         pwd = body["pwd"]
-        staffID = body["ID"]
+        user_type = body["Type"]
 
         dynamodb = boto3.resource("dynamodb")
         table_name = os.environ["TABLE_NAME"]
         table = dynamodb.Table(table_name)
 
         item = {
-            'StaffID': staffID,
+            'User_Type': user_type,
             'FirstName': firstname,
             'LastName': lastname,
             'Phone': phoneNum,
-            'EmailAddress': email_add,
+            'Email': email_add,
             'Password': pwd
         }
         logger.info(f"Inserting item: {json.dumps(item)}")
@@ -43,7 +43,7 @@ def lambda_handler(event: any, context: any):
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            "body": json.dumps({"message": f"Successfully Subscribed {firstname} {lastname}. Thank you!"})
+            "body": json.dumps({"message": f"Successfully Subscribed {firstname} {lastname}. Your type of User: {user_type}. Thank you!"})
         }
 
     except Exception as e:
