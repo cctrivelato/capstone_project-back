@@ -57,9 +57,3 @@ def lambda_handler(event: any, context: any):
             },
             "body": json.dumps({"error": f"Failed to insert item: {str(e)}"})
         }
-
-# test 
-
-{
-    "body": "{\"firstname\": \"John\", \"lastname\": \"Doe\", \"phoneNum\": \"1234567890\", \"email_add\": \"john.doe@example.com\", \"pwd\": \"securepass\", \"ID\": \"12345\"}"
-}

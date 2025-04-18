@@ -7,9 +7,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-
-table_name = os.environ["TABLE_NAME2"]
-
 def lambda_handler(event: any, context: any):
     try:
         body = json.loads(event["body"])
@@ -18,7 +15,7 @@ def lambda_handler(event: any, context: any):
         petname = body["petname"]
         pet_type = body["PetType"]
         service_num = body["ServiceID"]
-        customer_num = body["CustomerID"]
+        email_addr = body["Email"]
         step = 0
 
         dynamodb = boto3.resource("dynamodb")
@@ -28,7 +25,7 @@ def lambda_handler(event: any, context: any):
         item = {
             'ServiceID': service_num,
             'CustomerFirstName': firstname,
-            'CustomerID': customer_num,
+            'Email': email_addr,
             'PetName': petname,
             'PetType': pet_type,
             'Step': step
@@ -46,7 +43,7 @@ def lambda_handler(event: any, context: any):
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            "body": json.dumps({"message": f"Successfully added, {firstname}. Your Service Number is: {service_num}. Thank you!"})
+            "body": json.dumps({"message": f"Successfully added a new service status update for {firstname}. Your Service Number is: {service_num}. Thank you!"})
         }
 
     except Exception as e:

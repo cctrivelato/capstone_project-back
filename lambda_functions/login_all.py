@@ -34,10 +34,6 @@ def lambda_handler(event, context):
         email = body.get('Email')
         password = body.get('pwd')
         user_type = body.get('Type')
-
-        email = body['Email']  
-        password = body['pwd']
-        user_type = body.get('Type')
         
         response = table.get_item(
             Key={
@@ -72,4 +68,3 @@ def lambda_handler(event, context):
             'headers': {'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({'error': str(e)})
         }
-    

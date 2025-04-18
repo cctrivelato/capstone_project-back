@@ -50,12 +50,19 @@ def lambda_handler(event, context):
         
         # Convert Decimal to float before returning
         services_in_progress = decimal_to_float(services_in_progress)
+
+        service_ids = [service.get('ServiceID') for service in services_in_progress]
+        petNames = [service.get('PetName') for service in services_in_progress]
+        petTypes = [service.get('PetType') for service in services_in_progress]
         
         # Return the response
         return {
             'statusCode': 200,
             'body': json.dumps({
                 'services': services_in_progress,
+                'ServiceID': service_ids,
+                'PetName': petNames,
+                'PetType': petTypes,
                 'count': len(services_in_progress)
             }),
             'headers': {
@@ -74,3 +81,4 @@ def lambda_handler(event, context):
                 'Access-Control-Allow-Methods': 'OPTIONS, POST, GET'
             }
         }
+

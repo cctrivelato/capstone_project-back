@@ -1,67 +1,92 @@
-import os
+from project import jwt
 import json
-import boto3
+import os
 import logging
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
-# Enable logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-def lambda_handler(event: any, context: any):
+dynamodb = boto3.resource('dynamodb')
+table_name = os.environ["TABLE_NAME"]
+
+def get_user_from_dynamodb(email):
+    table = dynamodb.Table(table_name)
+    
     try:
-        body = json.loads(event["body"])
+        response = table.get_item(Key={"Email": email})
+        return response.get("Item") 
+    
+    except (BotoCoreError, ClientError) as e:
+        print(f"DynamoDB error: {e}")
+        return None
 
-        firstname = body["firstname"]
-        lastname = body["lastname"]
-        phoneNum = body["phoneNum"]
-        email_add = body["email_add"]
-        pwd = body["pwd"]
-        user_type = body["Type"]
+def lambda_handler(event, context):
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS, GET",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type"
+    }
 
-        dynamodb = boto3.resource("dynamodb")
-        table_name = os.environ["TABLE_NAME"]
-        table = dynamodb.Table(table_name)
-
-        item = {
-            'User_Type': user_type,
-            'FirstName': firstname,
-            'LastName': lastname,
-            'Phone': phoneNum,
-            'Email': email_add,
-            'Password': pwd
+    if event.get("httpMethod") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": headers,
+            "body": json.dumps({"message": "CORS preflight successful"})
         }
-        logger.info(f"Inserting item: {json.dumps(item)}")
 
-        response = table.put_item(Item=item)
+    # Get Authorization header
+    auth_header = event.get("headers", {}).get("Authorization", "")
 
-        logger.info(f"DynamoDB response: {json.dumps(response)}")
+    if not auth_header.startswith("Bearer "):
+        return {
+            "statusCode": 401,
+            "headers": headers,
+            "body": json.dumps({"message": "Unauthorized Bearer"})
+        }
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        SECRET_KEY = os.environ["JWT_SECRET"]   
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+
+        user_id = decoded_token.get("Email")
+        user_type = decoded_token.get("User_Type")
+
+        if not user_id:
+            return {
+                "statusCode": 400,
+                "headers": headers,
+                "body": json.dumps({"message": "Invalid token structure"})
+            }
+
+        # Query DynamoDB for the user
+        user = get_user_from_dynamodb(user_id)
+        if not user:
+            return {
+                "statusCode": 404,
+                "headers": headers,
+                "body": json.dumps({"message": "User not found"})
+            }
 
         return {
             "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type"
-            },
-            "body": json.dumps({"message": f"Successfully Subscribed {firstname} {lastname}. Your type of User: {user_type}. Thank you!"})
+            "headers": headers,
+            "body": json.dumps({"message": f"{user.get('FirstName')}", "email": f"{user_id}", "type": f"{user.get('User_Type')}"})
         }
 
-    except Exception as e:
-        logger.error(f"Error inserting item: {str(e)}")
+    except jwt.ExpiredSignatureError:
         return {
-            "statusCode": 500,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type"
-            },
-            "body": json.dumps({"error": f"Failed to insert item: {str(e)}"})
+            "statusCode": 401,
+            "headers": headers,
+            "body": json.dumps({"message": "Token expired"})
         }
-    
-{
-  "statusCode": 200,
-  "headers": {
-    "Access-Control-Allow-Origin": "*"
-  },
-  "body": "{\"success\": true, \"redirect_url\": \"/C:/Users/ctrivelato/Documents/GitHub/capstone_project-front/customer_page/customer_home.html\", \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJDdXN0b21lcklEIjoiMTIzNDUiLCJleHAiOjE3NDE5MDM0NDcsImlhdCI6MTc0MTg5OTg0N30.TFt9w-n7wa8jDFS4SfA8WcFFQrQxhk0A-YGf94pRIS0\"}"
-}
+
+    except jwt.InvalidTokenError:
+        return {
+            "statusCode": 401,
+            "headers": headers,
+            "body": json.dumps({"message": "Invalid token"})
+        }
